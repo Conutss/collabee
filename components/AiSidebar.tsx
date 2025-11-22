@@ -1,7 +1,6 @@
 "use client";
 
 import { useState, useRef, useEffect } from "react";
-import { model } from "@/lib/gemini";
 import { supabase } from "@/lib/supabase";
 import { usePathname } from "next/navigation";
 
@@ -12,46 +11,74 @@ export default function AiSidebar() {
   
   const pathname = usePathname();
 
+  // 대화 기록
   const [messages, setMessages] = useState<{role: string, text: string}[]>([
-    { role: "ai", text: "안녕하세요! 저는 AI 비서 AiBee입니다. 현재 보고 계신 문서에 대해 무엇이든 물어보세요! 🐝" }
+    { role: "ai", text: "안녕하세요! AiBee입니다. 무엇을 도와드릴까요? 🐝" }
   ]);
 
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
+  // 스크롤 자동 이동
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [messages]);
 
   // 페이지 바뀔 때마다 대화 초기화
   useEffect(() => { 
-    setMessages([{ role: "ai", text: "안녕하세요! AiBee입니다. 🐝" }]); 
+    setMessages([{ role: "ai", text: "새로운 페이지군요! 무엇이 궁금하신가요? 🐝" }]); 
   }, [pathname]);
 
-  const getPageContext = async () => {
-    if (!pathname.startsWith('/docs/')) return "";
+  // [핵심 수정] 현재 페이지의 '문맥(Context)'을 가져오는 함수
+  const getCurrentContext = async () => {
+    
+    // 1. 문서 페이지인 경우 (/docs/...)
+    if (pathname.startsWith('/docs/')) {
+      const pageId = pathname.split('/')[2];
+      if (!pageId) return "";
 
-    const pageId = pathname.split('/')[2];
-    if (!pageId) return "";
+      const { data } = await supabase
+        .from('pages')
+        .select('content')
+        .eq('id', pageId)
+        .single();
 
-    const { data } = await supabase
-      .from('pages')
-      .select('content')
-      .eq('id', pageId)
-      .single();
+      if (!data || !data.content) return "";
+      
+      // 문서 블록들을 텍스트로 변환
+      const blocks = data.content;
+      if (!Array.isArray(blocks)) return "";
+      return "현재 보고 있는 문서 내용:\n" + blocks.map((block: any) => {
+        if (Array.isArray(block.content)) {
+          return block.content.map((c: any) => c.text).join(" ");
+        }
+        return "";
+      }).join("\n");
+    }
 
-    if (!data || !data.content) return "";
+    // 2. [추가됨] 채팅 채널인 경우 (/channels/...)
+    if (pathname.startsWith('/channels/')) {
+      const channelId = pathname.split('/')[2]; // URL에서 채널 ID 추출
+      if (!channelId) return "";
 
-    const blocks = data.content;
-    if (!Array.isArray(blocks)) return "";
+      // 최근 채팅 메시지 30개를 가져옵니다.
+      const { data } = await supabase
+        .from('messages')
+        .select('content, user_nickname, created_at')
+        .eq('channel_id', channelId)
+        .order('created_at', { ascending: false }) // 최신순으로 가져와서
+        .limit(30);
 
-    const fullText = blocks.map((block: any) => {
-      if (Array.isArray(block.content)) {
-        return block.content.map((c: any) => c.text).join(" ");
-      }
-      return "";
-    }).join("\n");
+      if (!data || data.length === 0) return "";
 
-    return fullText;
+      // AI가 읽기 좋게 "누가: 무슨말" 형태로 정리 (순서는 과거 -> 최신으로 다시 뒤집음)
+      const chatLog = data.reverse().map(msg => 
+        `[${msg.user_nickname || '익명'}]: ${msg.content}`
+      ).join("\n");
+
+      return "현재 채팅방의 최근 대화 내용:\n" + chatLog;
+    }
+
+    return ""; // 그 외 페이지는 정보 없음
   };
 
   const handleSendMessage = async (e: React.FormEvent) => {
@@ -65,30 +92,22 @@ export default function AiSidebar() {
     setIsLoading(true);
 
     try {
-      const pageContext = await getPageContext();
-      
-      let finalPrompt = userQuestion;
+      // [수정] 위에서 만든 똑똑한 함수(getCurrentContext)를 실행
+      const currentContext = await getCurrentContext();
 
-      if (pageContext) {
-        finalPrompt = `
-현재 사용자가 보고 있는 문서 내용:
-"""
-${pageContext}
-"""
+      const response = await fetch("/api/chat", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          messages: [...messages, { role: "user", text: userQuestion }], 
+          pageContent: currentContext, // 여기에 문서 내용 혹은 채팅 로그가 들어갑니다!
+        }),
+      });
 
-사용자의 질문: "${userQuestion}"
+      const data = await response.json();
+      if (!response.ok) throw new Error(data.error);
 
-위 문서 내용을 바탕으로 사용자의 질문에 답변해줘.
-`;
-      }
-
-      console.log("AI에게 보낸 전체 프롬프트:", finalPrompt);
-
-      const result = await model.generateContent(finalPrompt);
-      const response = await result.response;
-      const aiText = response.text();
-
-      setMessages(prev => [...prev, { role: "ai", text: aiText }]);
+      setMessages(prev => [...prev, { role: "ai", text: data.result }]);
 
     } catch (error) {
       console.error("AI Error:", error);
@@ -114,7 +133,7 @@ ${pageContext}
       <div className={`fixed top-0 right-0 h-screen w-80 bg-white shadow-2xl border-l border-gray-200 transform transition-transform duration-300 ease-in-out z-40 flex flex-col ${isOpen ? "translate-x-0" : "translate-x-full"}`}>
         <div className="p-4 border-b bg-indigo-50">
           <h2 className="font-bold text-indigo-800 flex items-center gap-2">🤖 AiBee</h2>
-          <p className="text-xs text-indigo-600 mt-1">문서 내용을 다 알고 있어요!</p>
+          <p className="text-xs text-indigo-600 mt-1">문서와 채팅을 모두 이해해요!</p>
         </div>
 
         <div className="flex-1 overflow-y-auto p-4 space-y-4 bg-gray-50">
@@ -125,7 +144,7 @@ ${pageContext}
               </div>
             </div>
           ))}
-          {isLoading && <div className="text-xs text-gray-400 p-2">생각 중... 💭</div>}
+          {isLoading && <div className="text-xs text-gray-400 p-2">분석 중... 💭</div>}
           <div ref={messagesEndRef} />
         </div>
 
@@ -134,7 +153,7 @@ ${pageContext}
             <input
               type="text"
               className="flex-1 p-2 border rounded text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 text-black"
-              placeholder="이 문서에서 보완할 점은?"
+              placeholder="무엇이든 물어보세요"
               value={input}
               onChange={(e) => setInput(e.target.value)}
               disabled={isLoading}
