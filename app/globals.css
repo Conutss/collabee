@@ -1,28 +1,17 @@
-<<<<<<< HEAD
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
-
-body { background: #ffffff; color: #171717; }
-=======
-@import "tailwindcss";
 
 :root {
   --background: #ffffff;
   --foreground: #171717;
 }
 
-@theme inline {
-  --color-background: var(--background);
-  --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
-}
-
+/* 다크 모드 지원을 위해 남겨두거나, 나중에 주석을 풀어서 사용하세요 */
 /* @media (prefers-color-scheme: dark) {
   :root {
-    --background: #ffffff;
-    --foreground: #171717;
+    --background: #0a0a0a;
+    --foreground: #ededed;
   }
 } */
 
@@ -31,4 +20,3 @@ body {
   color: var(--foreground);
   font-family: Arial, Helvetica, sans-serif;
 }
->>>>>>> e015ee542e35cc8973d9c13800d9198d9a3a3695
