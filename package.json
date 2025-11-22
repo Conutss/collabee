@@ -9,20 +9,12 @@
     "lint": "eslint"
   },
   "dependencies": {
-    "@blocknote/core": "^0.42.3",
-    "@blocknote/mantine": "^0.42.3",
-    "@blocknote/react": "^0.42.3",
-    "@google/generative-ai": "^0.24.1",
-    "@liveblocks/client": "^1.9.7",
-    "@liveblocks/yjs": "^1.9.7",
-    "@supabase/supabase-js": "^2.84.0",
-    "next": "16.0.3",
-    "react": "19.2.0",
-    "react-dom": "19.2.0",
     "@blocknote/core": "^0.42.1",
     "@blocknote/mantine": "^0.42.1",
     "@blocknote/react": "^0.42.1",
     "@google/generative-ai": "^0.24.1",
+    "@liveblocks/client": "^1.9.7",
+    "@liveblocks/yjs": "^1.9.7",
     "@supabase/supabase-js": "^2.81.1",
     "next": "16.0.3",
     "react": "19.2.0",
@@ -31,7 +23,7 @@
     "yjs": "^13.6.27"
   },
   "devDependencies": {
-    "@tailwindcss/postcss": "^4",
+    "@tailwindcss/postcss": "^4.1.17",
     "@types/node": "^20",
     "@types/react": "^19",
     "@types/react-dom": "^19",
@@ -39,9 +31,6 @@
     "eslint": "^9",
     "eslint-config-next": "16.0.3",
     "postcss": "^8.5.6",
-    "tailwindcss": "^3.4.1",
-    "eslint": "^9",
-    "eslint-config-next": "16.0.3",
     "tailwindcss": "^4",
     "typescript": "^5"
   }
